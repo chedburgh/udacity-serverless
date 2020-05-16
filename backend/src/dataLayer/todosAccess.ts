@@ -11,7 +11,7 @@ export class TodosAccess {
     private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient(),
     private readonly todosTable = process.env.TODOS_TABLE,
     private readonly todosIndex = process.env.TODOS_INDEX_NAME
-  ) {}
+  ) { }
 
   async getAllTodosByUser(userId: string): Promise<TodoItem[]> {
     logger.info('Getting all todo items for userId: ' + userId);
@@ -57,11 +57,14 @@ export class TodosAccess {
       .update({
         TableName: this.todosTable,
         Key: { userId: userId, todoId: todoId },
-        UpdateExpression: 'set name = :name, dueDate = :dueDate, done = :done',
+        UpdateExpression: 'set #todoname = :name, dueDate = :dueDate, done = :done',
         ExpressionAttributeValues: {
           ':name': updateTodoRequest.name,
           ':dueDate': updateTodoRequest.dueDate,
           ':done': updateTodoRequest.done,
+        },
+        ExpressionAttributeNames: {
+          '#todoname': 'name'
         },
         ReturnValues: 'UPDATED_NEW',
       })

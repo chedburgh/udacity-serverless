@@ -1,12 +1,13 @@
 import * as uuid from 'uuid';
-
 import { TodoItem } from '../models/TodoItem';
 import { TodosAccess } from '../dataLayer/todosAccess';
 import { CreateTodoRequest } from '../requests/CreateTodoRequest';
 import { createLogger } from '../utils/logger';
 import { UpdateTodoRequest } from '../requests/UpdateTodoRequest';
+import { TodoStorage } from '../dataLayer/todosStorage';
 
 const todosAccess = new TodosAccess();
+const todoStorage = new TodoStorage();
 const logger = createLogger('todos');
 
 export async function getAllTodosByUser(userId: string): Promise<TodoItem[]> {
@@ -24,9 +25,9 @@ export async function createTodo(userId: string, createTodoRequest: CreateTodoRe
     userId: userId,
     todoId: todoId,
     createdAt: new Date().toISOString(),
-    name: createTodoRequest.name,
-    dueDate: createTodoRequest.dueDate,
     done: false,
+    attachmentUrl: todoStorage.getStorageUrl(todoId),
+    ...createTodoRequest
   };
 
   await todosAccess.storeTodo(todoItem);
@@ -45,4 +46,9 @@ export async function updateTodo(
 ): Promise<TodoItem> {
   logger.info('Updating todo: ' + todoId + ' for userId: ' + userId);
   return await todosAccess.updateTodo(userId, todoId, updateTodoRequest);
+}
+
+export async function createSignedUrl(todoId: string) {
+  logger.info('Creating signed URL for todoId: ' + todoId);
+  return todoStorage.getUploadUrl(todoId);
 }

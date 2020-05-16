@@ -15,6 +15,15 @@ export const handler = middy(
     const userId = getUserId(event);
     const todoId = event.pathParameters.todoId;
 
+    if (!todoId) {
+      return {
+        statusCode: 400,
+        body: JSON.stringify({
+          error: 'Missing todoId'
+        })
+      }
+    }
+
     await deleteTodo(userId, todoId);
 
     return {

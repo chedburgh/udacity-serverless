@@ -17,6 +17,8 @@ provider:
   environment:
     TODOS_TABLE: Todos-${self:provider.stage}
     TODOS_INDEX_NAME: TodosIdIndex
+    TODOS_IMAGE_BUCKET: serverless-todo-images-dsdf-${self:provider.stage}
+    SIGNED_URL_EXPIRATION: 300
 
 custom:
   documentation:
@@ -112,12 +114,20 @@ functions:
           - dynamodb:GetItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
 
-  #GenerateUploadUrl:
-  # handler: src/lambda/http/generateUploadUrl.handler
-  #events:
-  # - http:
-  #    method: post
-  #   path: todos/{todoId}/attachment
+  GenerateUploadUrl:
+    handler: src/lambda/http/generateUploadUrl.handler
+    events:
+      - http:
+          method: post
+          path: todos/{todoId}/attachment
+          cors: true
+          authorizer: Auth
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - s3:PutObject
+          - s3:GetObject
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_IMAGE_BUCKET}
 
 resources:
   Resources:
@@ -168,3 +178,37 @@ resources:
             Projection:
               ProjectionType: ALL # What attributes will be copied to an index
 
+    AttachmentBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.TODOS_IMAGE_BUCKET}
+        CorsConfiguration:
+          CorsRules:
+            -
+              AllowedOrigins:
+                - '*'
+              AllowedHeaders:
+                - '*'
+              AllowedMethods:
+                - GET
+                - PUT
+                - POST
+                - DELETE
+                - HEAD
+              MaxAge: 3000
+
+    AttachmentBucketPolicy:
+      Type: AWS::S3::BucketPolicy
+      Properties:
+        PolicyDocument:
+          Id: Policy
+          Version: '2012-10-17'
+          Statement:
+            - Sid: PublicReadWriteBucketPolicy
+              Effect: Allow
+              Principal: '*' 
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: arn:aws:s3:::${self:provider.environment.TODOS_IMAGE_BUCKET}/*
+        Bucket: !Ref AttachmentBucket
