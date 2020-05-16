@@ -26,7 +26,6 @@ export async function createTodo(userId: string, createTodoRequest: CreateTodoRe
     todoId: todoId,
     createdAt: new Date().toISOString(),
     done: false,
-    attachmentUrl: todoStorage.getStorageUrl(todoId),
     ...createTodoRequest,
   };
 
@@ -51,4 +50,9 @@ export async function updateTodo(
 export async function createSignedUrl(todoId: string) {
   logger.info('Creating signed URL for todoId: ' + todoId);
   return todoStorage.getUploadUrl(todoId);
+}
+
+export async function setAttachmentUrl(todoId: string): Promise<void> {
+  logger.info('Setting todo attachment url for todoId:: ' + todoId);
+  await todosAccess.setTodoAttachmentUrl(todoId, todoStorage.getStorageUrl(todoId));
 }

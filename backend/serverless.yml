@@ -8,7 +8,7 @@ plugins:
   - serverless-aws-documentation
 
 package:
-  individually: true
+  individually: false
 
 provider:
   name: aws
@@ -19,7 +19,8 @@ provider:
 
   environment:
     TODOS_TABLE: Todos-${self:provider.stage}
-    TODOS_INDEX_NAME: TodosIdIndex
+    TODOS_LOCAL_INDEX: TodosIdIndex
+    TODOS_TODOID_INDEX: TodosTodoIdIndex
     TODOS_IMAGE_BUCKET: serverless-todo-images-dsdf-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
 
@@ -64,7 +65,7 @@ functions:
         Action:
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
-      - Effect: 'Allow'
+      - Effect: Allow
         Action:
           - xray:PutTelemetryRecords
           - xray:PutTraceSegments
@@ -82,14 +83,12 @@ functions:
       - Effect: Allow
         Action:
           - dynamodb:Query
-          - dynamodb:Scan
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
       - Effect: Allow
         Action:
           - dynamodb:Query
-          - dynamodb:Scan
-        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_INDEX_NAME}
-      - Effect: 'Allow'
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_LOCAL_INDEX}
+      - Effect: Allow
         Action:
           - xray:PutTelemetryRecords
           - xray:PutTraceSegments
@@ -115,7 +114,7 @@ functions:
           - dynamodb:UpdateItem
           - dynamodb:GetItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
-      - Effect: 'Allow'
+      - Effect: Allow
         Action:
           - xray:PutTelemetryRecords
           - xray:PutTraceSegments
@@ -135,7 +134,7 @@ functions:
           - dynamodb:DeleteItem
           - dynamodb:GetItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
-      - Effect: 'Allow'
+      - Effect: Allow
         Action:
           - xray:PutTelemetryRecords
           - xray:PutTraceSegments
@@ -155,7 +154,33 @@ functions:
           - s3:PutObject
           - s3:GetObject
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_IMAGE_BUCKET}
-      - Effect: 'Allow'
+      - Effect: Allow
+        Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+        Resource: '*'
+
+  UploadNotification:
+    handler: src/lambda/s3/uploadNotification.handler
+    events:
+      - s3:
+          bucket: ${self:provider.environment.TODOS_IMAGE_BUCKET}
+          event: s3:ObjectCreated:*
+          #rules:
+          #- prefix: images/
+          #- suffix: .png
+          existing: true
+    iamRoleStatements:
+      - Effect: Allow
+        Action:
+          - dynamodb:UpdateItem
+          - dynamodb:GetItem
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: Allow
+        Action:
+          - dynamodb:Query
+        Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_TODOID_INDEX}
+      - Effect: Allow
         Action:
           - xray:PutTelemetryRecords
           - xray:PutTraceSegments
@@ -201,14 +226,21 @@ resources:
         BillingMode: PAY_PER_REQUEST
         TableName: ${self:provider.environment.TODOS_TABLE}
         LocalSecondaryIndexes:
-          - IndexName: ${self:provider.environment.TODOS_INDEX_NAME}
+          - IndexName: ${self:provider.environment.TODOS_LOCAL_INDEX}
             KeySchema:
               - AttributeName: userId
                 KeyType: HASH
               - AttributeName: createdAt
                 KeyType: RANGE
             Projection:
-              ProjectionType: ALL # What attributes will be copied to an index
+              ProjectionType: ALL
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.TODOS_TODOID_INDEX}
+            KeySchema:
+              - AttributeName: todoId
+                KeyType: HASH
+            Projection:
+              ProjectionType: KEYS_ONLY
 
     AttachmentBucket:
       Type: AWS::S3::Bucket
@@ -216,7 +248,8 @@ resources:
         BucketName: ${self:provider.environment.TODOS_IMAGE_BUCKET}
         CorsConfiguration:
           CorsRules:
-            - AllowedOrigins:
+            - 
+              AllowedOrigins:
                 - '*'
               AllowedHeaders:
                 - '*'
@@ -243,3 +276,12 @@ resources:
                 - s3:PutObject
               Resource: arn:aws:s3:::${self:provider.environment.TODOS_IMAGE_BUCKET}/*
         Bucket: !Ref AttachmentBucket
+
+    UploadNotificationPermission:
+      Type: AWS::Lambda::Permission
+      Properties:
+        FunctionName: !Ref UploadNotificationLambdaFunction
+        Principal: s3.amazonaws.com
+        Action: lambda:InvokeFunction
+        SourceAccount: !Ref AWS::AccountId
+        SourceArn: arn:aws:s3:::${self:provider.environment.TODOS_IMAGE_BUCKET}
