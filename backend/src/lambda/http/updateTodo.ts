@@ -21,9 +21,9 @@ export const handler = middy(
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: 'Missing todoId'
-        })
-      }
+          error: 'Missing todoId',
+        }),
+      };
     }
 
     const item = await updateTodo(userId, todoId, updateTodoRequest);

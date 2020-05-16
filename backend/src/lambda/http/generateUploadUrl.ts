@@ -1,5 +1,5 @@
-import 'source-map-support/register'
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda'
+import 'source-map-support/register';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
 import * as middy from 'middy';
 import { cors } from 'middy/middlewares';
 import { createLogger } from '../../utils/logger';
@@ -16,9 +16,9 @@ export const handler = middy(
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: 'Missing todoId'
-        })
-      }
+          error: 'Missing todoId',
+        }),
+      };
     }
 
     const signedUrl = await createSignedUrl(todoId);
@@ -26,9 +26,10 @@ export const handler = middy(
     return {
       statusCode: 201,
       body: JSON.stringify({
-        uploadUrl: signedUrl
-      })
+        uploadUrl: signedUrl,
+      }),
     };
-  });
+  }
+);
 
 handler.use(cors({ credentials: true }));

@@ -7,6 +7,9 @@ plugins:
   - serverless-reqvalidator-plugin
   - serverless-aws-documentation
 
+package:
+  individually: true
+
 provider:
   name: aws
   runtime: nodejs12.x
@@ -19,6 +22,10 @@ provider:
     TODOS_INDEX_NAME: TodosIdIndex
     TODOS_IMAGE_BUCKET: serverless-todo-images-dsdf-${self:provider.stage}
     SIGNED_URL_EXPIRATION: 300
+
+  tracing:
+    lambda: true
+    apiGateway: true
 
 custom:
   documentation:
@@ -51,12 +58,17 @@ functions:
             summary: Create a todo item
             description: Create a todo item
             requestModels:
-              "application/json": CreateTodoRequest
+              'application/json': CreateTodoRequest
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:PutItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: 'Allow'
+        Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+        Resource: '*'
 
   GetTodos:
     handler: src/lambda/http/getTodos.handler
@@ -77,6 +89,11 @@ functions:
           - dynamodb:Query
           - dynamodb:Scan
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}/index/${self:provider.environment.TODOS_INDEX_NAME}
+      - Effect: 'Allow'
+        Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+        Resource: '*'
 
   UpdateTodo:
     handler: src/lambda/http/updateTodo.handler
@@ -91,13 +108,18 @@ functions:
             summary: Update a todo item
             description: Update a todo item
             requestModels:
-              "application/json": UpdateTodoRequest
+              'application/json': UpdateTodoRequest
     iamRoleStatements:
       - Effect: Allow
         Action:
           - dynamodb:UpdateItem
           - dynamodb:GetItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: 'Allow'
+        Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+        Resource: '*'
 
   DeleteTodo:
     handler: src/lambda/http/deleteTodo.handler
@@ -113,6 +135,11 @@ functions:
           - dynamodb:DeleteItem
           - dynamodb:GetItem
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_TABLE}
+      - Effect: 'Allow'
+        Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+        Resource: '*'
 
   GenerateUploadUrl:
     handler: src/lambda/http/generateUploadUrl.handler
@@ -128,13 +155,18 @@ functions:
           - s3:PutObject
           - s3:GetObject
         Resource: arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.TODOS_IMAGE_BUCKET}
+      - Effect: 'Allow'
+        Action:
+          - xray:PutTelemetryRecords
+          - xray:PutTraceSegments
+        Resource: '*'
 
 resources:
   Resources:
     RequestBodyValidator:
       Type: AWS::ApiGateway::RequestValidator
       Properties:
-        Name: "request-body-validator"
+        Name: 'request-body-validator'
         RestApiId:
           Ref: ApiGatewayRestApi
         ValidateRequestBody: true
@@ -184,8 +216,7 @@ resources:
         BucketName: ${self:provider.environment.TODOS_IMAGE_BUCKET}
         CorsConfiguration:
           CorsRules:
-            -
-              AllowedOrigins:
+            - AllowedOrigins:
                 - '*'
               AllowedHeaders:
                 - '*'
@@ -206,7 +237,7 @@ resources:
           Statement:
             - Sid: PublicReadWriteBucketPolicy
               Effect: Allow
-              Principal: '*' 
+              Principal: '*'
               Action:
                 - s3:GetObject
                 - s3:PutObject

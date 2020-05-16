@@ -16,12 +16,14 @@ export const handler = middy(
     const todoId = event.pathParameters.todoId;
 
     if (!todoId) {
+      logger.error('No todoId supplied, returning 400');
+
       return {
         statusCode: 400,
         body: JSON.stringify({
-          error: 'Missing todoId'
-        })
-      }
+          error: 'Missing todoId',
+        }),
+      };
     }
 
     await deleteTodo(userId, todoId);

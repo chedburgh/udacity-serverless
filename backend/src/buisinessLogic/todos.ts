@@ -27,7 +27,7 @@ export async function createTodo(userId: string, createTodoRequest: CreateTodoRe
     createdAt: new Date().toISOString(),
     done: false,
     attachmentUrl: todoStorage.getStorageUrl(todoId),
-    ...createTodoRequest
+    ...createTodoRequest,
   };
 
   await todosAccess.storeTodo(todoItem);

@@ -5,13 +5,15 @@ import { createLogger } from '../utils/logger';
 import { UpdateTodoRequest } from '../requests/UpdateTodoRequest';
 
 const logger = createLogger('todosAccess');
+const AWSXRay = require('aws-xray-sdk');
+const XAWS = AWSXRay.captureAWS(AWS);
 
 export class TodosAccess {
   constructor(
-    private readonly docClient: DocumentClient = new AWS.DynamoDB.DocumentClient(),
+    private readonly docClient: DocumentClient = new XAWS.DynamoDB.DocumentClient(),
     private readonly todosTable = process.env.TODOS_TABLE,
     private readonly todosIndex = process.env.TODOS_INDEX_NAME
-  ) { }
+  ) {}
 
   async getAllTodosByUser(userId: string): Promise<TodoItem[]> {
     logger.info('Getting all todo items for userId: ' + userId);
@@ -64,7 +66,7 @@ export class TodosAccess {
           ':done': updateTodoRequest.done,
         },
         ExpressionAttributeNames: {
-          '#todoname': 'name'
+          '#todoname': 'name',
         },
         ReturnValues: 'UPDATED_NEW',
       })
